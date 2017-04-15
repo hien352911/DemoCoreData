@@ -77,6 +77,9 @@ class MealTableViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
             // Delete the row from the data source
+            let managedObjectContext = AppDelegate.shared.persistentContainer.viewContext
+            managedObjectContext.delete(meals[indexPath.row])
+            AppDelegate.shared.saveContext()
             meals.remove(at: indexPath.row)
             tableView.deleteRows(at: [indexPath], with: .fade)
         } else if editingStyle == .insert {
