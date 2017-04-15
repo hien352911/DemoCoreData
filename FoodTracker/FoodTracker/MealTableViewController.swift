@@ -8,12 +8,13 @@
 
 import UIKit
 import os.log
+import CoreData
 
 class MealTableViewController: UITableViewController {
     
     //MARK: Properties
     
-    var meals = [Meal]()
+    var meals = [MealEntity]()
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -22,7 +23,9 @@ class MealTableViewController: UITableViewController {
         navigationItem.leftBarButtonItem = editButtonItem
 
         // Load the sample data.
-        loadSampleMeals()
+        
+        let managedObjectContext = AppDelegate.shared.persistentContainer.viewContext
+        meals = try! managedObjectContext.fetch(MealEntity.fetchRequest()) as! [MealEntity]
     }
 
     override func didReceiveMemoryWarning() {
@@ -54,8 +57,8 @@ class MealTableViewController: UITableViewController {
         let meal = meals[indexPath.row]
         
         cell.nameLabel.text = meal.name
-        cell.photoImageView.image = meal.photo
-        cell.ratingControl.rating = meal.rating
+        cell.photoImageView.image = meal.photo as? UIImage
+        cell.ratingControl.rating = Int(meal.rating)
         
         return cell
     }
@@ -145,34 +148,11 @@ class MealTableViewController: UITableViewController {
             else {
                 // Add a new meal.
                 let newIndexPath = IndexPath(row: meals.count, section: 0)
-                
                 meals.append(meal)
+                AppDelegate.shared.saveContext()
                 tableView.insertRows(at: [newIndexPath], with: .automatic)
             }
         }
-    }
-    
-    //MARK: Private Methods
-    
-    private func loadSampleMeals() {
-        
-        let photo1 = UIImage(named: "meal1")
-        let photo2 = UIImage(named: "meal2")
-        let photo3 = UIImage(named: "meal3")
-
-        guard let meal1 = Meal(name: "Caprese Salad", photo: photo1, rating: 4) else {
-            fatalError("Unable to instantiate meal1")
-        }
-
-        guard let meal2 = Meal(name: "Chicken and Potatoes", photo: photo2, rating: 5) else {
-            fatalError("Unable to instantiate meal2")
-        }
-
-        guard let meal3 = Meal(name: "Pasta with Meatballs", photo: photo3, rating: 3) else {
-            fatalError("Unable to instantiate meal2")
-        }
-
-        meals += [meal1, meal2, meal3]
     }
 
 }
