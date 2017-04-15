@@ -146,6 +146,7 @@ class MealTableViewController: UITableViewController {
             if let selectedIndexPath = tableView.indexPathForSelectedRow {
                 // Update an existing meal.
                 meals[selectedIndexPath.row] = meal
+                AppDelegate.shared.saveContext()
                 tableView.reloadRows(at: [selectedIndexPath], with: .none)
             }
             else {
