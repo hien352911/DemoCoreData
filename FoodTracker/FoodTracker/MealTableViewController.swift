@@ -10,7 +10,7 @@ import UIKit
 import os.log
 import CoreData
 
-class MealTableViewController: UITableViewController, NSFetchedResultsControllerDelegate {
+class MealTableViewController: UITableViewController {
     
     //MARK: Properties
     
@@ -76,55 +76,30 @@ class MealTableViewController: UITableViewController, NSFetchedResultsController
             fatalError("The dequeued cell is not an instance of MealTableViewCell.")
         }
         
-        // Fetches the appropriate meal for the data source layout.
-        let meal = meals[indexPath.row]
-        
-        cell.nameLabel.text = meal.name
-        cell.photoImageView.image = meal.photo as? UIImage
-        cell.ratingControl.rating = Int(meal.rating)
+        // Configure Cell
+        configureCell(cell, indexPath: indexPath)
         
         return cell
     }
-    
 
-    
     // Override to support conditional editing of the table view.
     override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
         // Return false if you do not want the specified item to be editable.
         return true
     }
     
-
-    
     // Override to support editing the table view.
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == .delete {
-            // Delete the row from the data source
-            let managedObjectContext = AppDelegate.shared.persistentContainer.viewContext
-            managedObjectContext.delete(meals[indexPath.row])
-            AppDelegate.shared.saveContext()
-            meals.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .fade)
+            // Fetch Meal
+            let meal = fetchedResultsController.object(at: indexPath)
+            
+            // Delete Meal
+            meal.managedObjectContext?.delete(meal)
         } else if editingStyle == .insert {
             // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
         }    
     }
-    
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
 
     
     //MARK: - Navigation
@@ -144,6 +119,9 @@ class MealTableViewController: UITableViewController, NSFetchedResultsController
                 fatalError("Unexpected destination: \(segue.destination)")
             }
             
+            // Configure Meal View Controller
+            mealDetailViewController.managedObjectContext = AppDelegate.shared.persistentContainer.viewContext
+
             guard let selectedMealCell = sender as? MealTableViewCell else {
                 fatalError("Unexpected sender: \(sender)")
             }
@@ -151,35 +129,69 @@ class MealTableViewController: UITableViewController, NSFetchedResultsController
             guard let indexPath = tableView.indexPath(for: selectedMealCell) else {
                 fatalError("The selected cell is not being displayed by the table")
             }
-            
-            let selectedMeal = meals[indexPath.row]
-            mealDetailViewController.meal = selectedMeal
+
+            mealDetailViewController.meal = fetchedResultsController.object(at: indexPath)
             
         default:
             fatalError("Unexpected Segue Identifier; \(segue.identifier)")
         }
+    }
+    
+    // MARK: - Methods
+    
+    func configureCell(_ cell: MealTableViewCell, indexPath: IndexPath) {
+        // Fetch Meal
+        let meal = fetchedResultsController.object(at: indexPath)
+        
+        // Configure Cell
+        cell.nameLabel.text = meal.name
+        cell.ratingControl.rating = Int(meal.rating)
+        cell.photoImageView.image = meal.photo as? UIImage
     }
 
     
     //MARK: Actions
     
     @IBAction func unwindToMealList(sender: UIStoryboardSegue) {
-        if let sourceViewController = sender.source as? MealViewController, let meal = sourceViewController.meal {
-            
-            if let selectedIndexPath = tableView.indexPathForSelectedRow {
-                // Update an existing meal.
-                meals[selectedIndexPath.row] = meal
-                AppDelegate.shared.saveContext()
-                tableView.reloadRows(at: [selectedIndexPath], with: .none)
-            }
-            else {
-                // Add a new meal.
-                let newIndexPath = IndexPath(row: meals.count, section: 0)
-                meals.append(meal)
-                AppDelegate.shared.saveContext()
-                tableView.insertRows(at: [newIndexPath], with: .automatic)
-            }
-        }
+
     }
 
+}
+
+extension MealTableViewController: NSFetchedResultsControllerDelegate {
+    func controllerWillChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
+        tableView.beginUpdates()
+    }
+    
+    func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
+        switch type {
+        case .insert:
+            if let newIndexPath = newIndexPath {
+                tableView.insertRows(at: [newIndexPath], with: .fade)
+            }
+            break
+        case .delete:
+            if let indexPath = indexPath {
+                tableView.deleteRows(at: [indexPath], with: .fade)
+            }
+            break
+        case .update:
+            if let indexPath = indexPath, let cell = tableView.cellForRow(at: indexPath) as? MealTableViewCell {
+                configureCell(cell, indexPath: indexPath)
+            }
+            break
+        default:
+            break
+        }
+        do {
+            try AppDelegate.shared.persistentContainer.viewContext.save()
+        } catch {
+            print("Unable to Save Changes")
+            print("\(error), \(error.localizedDescription)")
+        }
+    }
+    
+    func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
+        tableView.endUpdates()
+    }
 }
