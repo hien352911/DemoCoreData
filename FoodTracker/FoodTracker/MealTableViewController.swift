@@ -10,11 +10,27 @@ import UIKit
 import os.log
 import CoreData
 
-class MealTableViewController: UITableViewController {
+class MealTableViewController: UITableViewController, NSFetchedResultsControllerDelegate {
     
     //MARK: Properties
     
-    var meals = [MealEntity]()
+    private lazy var fetchedResultsController: NSFetchedResultsController<MealEntity> = {
+        // Create Fetch Request
+        let fetchRequest: NSFetchRequest<MealEntity> = MealEntity.fetchRequest()
+        
+        // Configure Fetch Reqeust
+        fetchRequest.sortDescriptors = [NSSortDescriptor(key: "rating", ascending: false)]
+        
+        // Create Fetched Result Controller
+        let fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: AppDelegate.shared.persistentContainer.viewContext, sectionNameKeyPath: nil, cacheName: nil)
+        
+        // Configure Fetched Result Controller
+        fetchedResultsController.delegate = self
+        
+        return fetchedResultsController
+    }()
+    
+    // MARK: - Life cycle
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -24,8 +40,13 @@ class MealTableViewController: UITableViewController {
 
         // Load the sample data.
         
-        let managedObjectContext = AppDelegate.shared.persistentContainer.viewContext
-        meals = try! managedObjectContext.fetch(MealEntity.fetchRequest()) as! [MealEntity]
+        do {
+            try self.fetchedResultsController.performFetch()
+        } catch {
+            let fetchError = error as NSError
+            print("Unable to Perform Request")
+            print("\(fetchError), \(fetchError.localizedDescription)")
+        }
     }
 
     override func didReceiveMemoryWarning() {
@@ -40,9 +61,11 @@ class MealTableViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        guard let meals = fetchedResultsController.fetchedObjects else {
+            return 0
+        }
         return meals.count
     }
-
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
