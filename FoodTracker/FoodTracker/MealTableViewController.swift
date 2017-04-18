@@ -14,7 +14,7 @@ class MealTableViewController: UITableViewController {
     
     //MARK: Properties
     
-    private lazy var fetchedResultsController: NSFetchedResultsController<MealEntity> = {
+    fileprivate lazy var fetchedResultsController: NSFetchedResultsController<MealEntity> = {
         // Create Fetch Request
         let fetchRequest: NSFetchRequest<MealEntity> = MealEntity.fetchRequest()
         
@@ -29,6 +29,9 @@ class MealTableViewController: UITableViewController {
         
         return fetchedResultsController
     }()
+    
+    var mealsEntity: [MealEntity] = []
+    let searchController = UISearchController(searchResultsController: nil)
     
     // MARK: - Life cycle
 
@@ -47,6 +50,10 @@ class MealTableViewController: UITableViewController {
             print("Unable to Perform Request")
             print("\(fetchError), \(fetchError.localizedDescription)")
         }
+        
+        searchController.searchResultsUpdater = self
+        searchController.obscuresBackgroundDuringPresentation = true
+        tableView.tableHeaderView = searchController.searchBar
     }
 
     override func didReceiveMemoryWarning() {
@@ -61,6 +68,11 @@ class MealTableViewController: UITableViewController {
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if searchController.searchBar.text != "" {
+            if mealsEntity.count > 0 {
+                return mealsEntity.count
+            }
+        }
         guard let meals = fetchedResultsController.fetchedObjects else {
             return 0
         }
@@ -76,8 +88,16 @@ class MealTableViewController: UITableViewController {
             fatalError("The dequeued cell is not an instance of MealTableViewCell.")
         }
         
-        // Configure Cell
-        configureCell(cell, indexPath: indexPath)
+        if searchController.searchBar.text != "" {
+            let meal = mealsEntity[indexPath.row]
+            cell.nameLabel.text = meal.name
+            cell.ratingControl.rating = Int(meal.rating)
+            cell.photoImageView.image = meal.photo as? UIImage
+        }
+        else {
+            // Configure Cell
+            configureCell(cell, indexPath: indexPath)
+        }
         
         return cell
     }
@@ -157,6 +177,27 @@ class MealTableViewController: UITableViewController {
     }
 
 }
+
+// MARK: - UISearchResultsUpdating
+
+extension MealTableViewController: UISearchResultsUpdating {
+    func updateSearchResults(for searchController: UISearchController) {
+        guard let searchText = searchController.searchBar.text else {
+            return
+        }
+        guard let fetchedObjects = fetchedResultsController.fetchedObjects else {
+            return
+        }
+        mealsEntity = fetchedObjects.filter({ (mealEntity) -> Bool in
+            let foldingNameMealEntity = mealEntity.name?.lowercased().folding(options: .diacriticInsensitive, locale: Locale.current)
+            let foldingSearchText = searchText.lowercased().folding(options: .diacriticInsensitive, locale: Locale.current)
+            return (foldingNameMealEntity ?? "").contains(foldingSearchText)
+        })
+        tableView.reloadData()
+    }
+}
+
+// MARK: - NSFetchedResultsControllerDelegate
 
 extension MealTableViewController: NSFetchedResultsControllerDelegate {
     func controllerWillChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
